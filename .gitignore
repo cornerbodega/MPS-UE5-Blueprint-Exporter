@@ -1,0 +1,41 @@
+# Build outputs
+Binaries/
+Intermediate/
+Build/
+*.sln
+*.xcworkspace
+*.xcodeproj
+
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Unreal
+DerivedDataCache/
+Saved/
+*.uasset
+*.umap
+
+# Logs
+*.log
