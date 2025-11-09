@@ -166,6 +166,198 @@ def extract_blueprint_data_full(blueprint: unreal.Blueprint) -> Dict[str, Any]:
 # MARKDOWN GENERATION
 # ============================================================================
 
+def generate_detailed_node_graph(nodes: List[Dict[str, Any]]) -> str:
+    """Generate detailed node-by-node breakdown showing execution and data flow"""
+    md = ""
+
+    # Build connection map for easier lookup
+    connection_map = {}
+    for node in nodes:
+        node_id = node.get('id', '')
+        connections = node.get('connections', [])
+        connection_map[node_id] = connections
+
+    # Categorize nodes by type
+    event_nodes = [n for n in nodes if 'Event' in n.get('type', '')]
+    function_nodes = [n for n in nodes if 'CallFunction' in n.get('type', '')]
+    variable_nodes = [n for n in nodes if 'Variable' in n.get('type', '')]
+    other_nodes = [n for n in nodes if n not in event_nodes + function_nodes + variable_nodes]
+
+    # Show execution flow starting from events
+    if event_nodes:
+        md += "#### Execution Flow\n\n"
+        for event_node in event_nodes:
+            md += generate_execution_chain(event_node, nodes, connection_map)
+        md += "\n"
+
+    # Show all function calls with details
+    if function_nodes:
+        md += "#### Function Calls\n\n"
+        for func_node in function_nodes:
+            md += generate_function_call_detail(func_node)
+        md += "\n"
+
+    # Show variable usage
+    if variable_nodes:
+        md += "#### Variables Used\n\n"
+        for var_node in variable_nodes:
+            title = var_node.get('title', 'Unknown').replace('\n', ' ')
+            node_type = var_node.get('type', 'Unknown')
+            md += f"- **{title}** ({node_type})\n"
+        md += "\n"
+
+    # Show complete node details
+    md += "#### All Nodes (Detailed)\n\n"
+    for idx, node in enumerate(nodes, 1):
+        md += generate_node_detail(node, idx)
+
+    return md
+
+
+def generate_execution_chain(start_node: Dict[str, Any], all_nodes: List[Dict[str, Any]], connection_map: Dict) -> str:
+    """Trace execution flow from an event node"""
+    md = f"**{start_node.get('title', 'Unknown Event')}**\n\n"
+
+    # Build node lookup
+    node_lookup = {n.get('id'): n for n in all_nodes}
+
+    # Trace execution chain
+    visited = set()
+    current_node = start_node
+    step = 1
+
+    while current_node and current_node.get('id') not in visited:
+        node_id = current_node.get('id')
+        visited.add(node_id)
+
+        # Show current node
+        title = current_node.get('title', 'Unknown').replace('\n', ' → ')
+        node_type = current_node.get('type', 'Unknown')
+        md += f"{step}. **{title}** `[{node_type}]`\n"
+
+        # Show input pins with values
+        pins = current_node.get('pins', [])
+        input_pins = [p for p in pins if p.get('direction') == 'input' and p.get('type') != 'exec']
+        if input_pins:
+            md += "   - Inputs:\n"
+            for pin in input_pins:
+                pin_name = pin.get('display_name', pin.get('name', 'Unknown'))
+                pin_type = pin.get('type', 'Unknown')
+                default_val = pin.get('default_value', '')
+                if default_val:
+                    md += f"     - {pin_name}: `{pin_type}` = `{default_val}`\n"
+                else:
+                    md += f"     - {pin_name}: `{pin_type}`\n"
+
+        # Show output pins
+        output_pins = [p for p in pins if p.get('direction') == 'output' and p.get('type') != 'exec']
+        if output_pins:
+            md += "   - Outputs:\n"
+            for pin in output_pins:
+                pin_name = pin.get('display_name', pin.get('name', 'Unknown'))
+                pin_type = pin.get('type', 'Unknown')
+                md += f"     - {pin_name}: `{pin_type}`\n"
+
+        md += "\n"
+
+        # Find next node in execution chain (follow exec output pins)
+        connections = current_node.get('connections', [])
+        next_node = None
+        if connections:
+            # Try to find the next connected node
+            for conn_id in connections:
+                if conn_id in node_lookup:
+                    next_node = node_lookup[conn_id]
+                    break
+
+        current_node = next_node
+        step += 1
+
+        # Safety limit
+        if step > 50:
+            md += "   _(Execution chain continues...)_\n\n"
+            break
+
+    md += "\n"
+    return md
+
+
+def generate_function_call_detail(node: Dict[str, Any]) -> str:
+    """Generate detailed breakdown of a function call node"""
+    title = node.get('title', 'Unknown Function').replace('\n', ' → ')
+    category = node.get('category', '')
+
+    md = f"- **{title}**"
+    if category:
+        md += f" _{category}_"
+    md += "\n"
+
+    # Show pins
+    pins = node.get('pins', [])
+    input_pins = [p for p in pins if p.get('direction') == 'input' and p.get('type') != 'exec']
+    output_pins = [p for p in pins if p.get('direction') == 'output' and p.get('type') != 'exec']
+
+    if input_pins:
+        md += "  - Parameters:\n"
+        for pin in input_pins:
+            pin_name = pin.get('display_name', pin.get('name', 'Unknown'))
+            pin_type = pin.get('type', 'Unknown')
+            default_val = pin.get('default_value', '')
+            if default_val:
+                md += f"    - `{pin_name}`: {pin_type} = `{default_val}`\n"
+            else:
+                md += f"    - `{pin_name}`: {pin_type}\n"
+
+    if output_pins:
+        md += "  - Returns:\n"
+        for pin in output_pins:
+            pin_name = pin.get('display_name', pin.get('name', 'Unknown'))
+            pin_type = pin.get('type', 'Unknown')
+            md += f"    - `{pin_name}`: {pin_type}\n"
+
+    md += "\n"
+    return md
+
+
+def generate_node_detail(node: Dict[str, Any], index: int) -> str:
+    """Generate complete detail for a single node"""
+    node_id = node.get('id', 'Unknown')
+    title = node.get('title', 'Unknown').replace('\n', ' → ')
+    node_type = node.get('type', 'Unknown')
+    category = node.get('category', '')
+    position = node.get('position', {})
+
+    md = f"**Node {index}: {title}**\n"
+    md += f"- Type: `{node_type}`\n"
+    if category:
+        md += f"- Category: `{category}`\n"
+    md += f"- ID: `{node_id}`\n"
+    md += f"- Position: ({position.get('x', 0)}, {position.get('y', 0)})\n"
+
+    # Show all pins
+    pins = node.get('pins', [])
+    if pins:
+        md += "- Pins:\n"
+        for pin in pins:
+            pin_name = pin.get('display_name', pin.get('name', 'Unknown'))
+            pin_dir = pin.get('direction', 'unknown')
+            pin_type = pin.get('type', 'Unknown')
+            default_val = pin.get('default_value', '')
+
+            pin_str = f"  - [{pin_dir}] `{pin_name}`: {pin_type}"
+            if default_val:
+                pin_str += f" = `{default_val}`"
+            md += pin_str + "\n"
+
+    # Show connections
+    connections = node.get('connections', [])
+    if connections:
+        md += f"- Connected to: {', '.join([f'`{c}`' for c in connections])}\n"
+
+    md += "\n"
+    return md
+
+
 def generate_markdown(data: Dict[str, Any]) -> str:
     """Generate human-readable Markdown from blueprint data"""
 
@@ -217,22 +409,17 @@ def generate_markdown(data: Dict[str, Any]) -> str:
             md += f"- {interface}\n"
         md += "\n"
 
-    # Graphs (from C++ plugin)
+    # Graphs (from C++ plugin) - DETAILED NODE-BY-NODE LOGIC
     if data.get('graphs'):
-        md += "## Graphs\n\n"
+        md += "## Graphs & Node Logic\n\n"
         for graph in data['graphs']:
             graph_name = graph.get('name', 'Unknown')
             nodes = graph.get('nodes', [])
             md += f"### {graph_name}\n\n"
             md += f"**Total Nodes:** {len(nodes)}\n\n"
 
-            # Show key nodes (events, functions)
-            event_nodes = [n for n in nodes if 'Event' in n.get('type', '')]
-            if event_nodes:
-                md += "**Events:**\n"
-                for node in event_nodes[:5]:  # Limit to first 5
-                    md += f"- {node.get('title', 'Unknown')}\n"
-                md += "\n"
+            if nodes:
+                md += generate_detailed_node_graph(nodes)
         md += "\n"
 
     # Dependencies
@@ -365,29 +552,29 @@ def main():
     unreal.log("=" * 60)
 
     # Export all blueprints
-    export_all_blueprints()
+    count = export_all_blueprints()
 
-    unreal.log("\nExport complete! You can now use Claude Code to analyze your blueprints.")
-    unreal.log(f"Documentation location: {os.path.join(get_project_root(), OUTPUT_DIR)}")
+    # Get full path for Claude Code
+    project_root = get_project_root()
+    full_docs_path = os.path.join(project_root, OUTPUT_DIR)
+
     unreal.log("\n" + "=" * 60)
-    unreal.log("HOW TO USE WITH CLAUDE CODE:")
+    unreal.log(f"✓ Exported {count} blueprints")
+    unreal.log(f"✓ Location: {OUTPUT_DIR}/")
     unreal.log("=" * 60)
-    unreal.log("\n1. Open Claude Code in your project directory:")
-    unreal.log(f"   cd {get_project_root()}")
-    unreal.log("   claude-code")
-    unreal.log("\n2. Copy this prompt to tell Claude Code where your blueprints are:")
-    unreal.log("\n" + "-" * 60)
-    unreal.log(f"I have exported UE5 blueprints to {os.path.join(get_project_root(), OUTPUT_DIR)}/")
-    unreal.log("Please read the index.md file to see all available blueprints,")
-    unreal.log("then answer my questions about the blueprint logic.")
-    unreal.log("-" * 60)
-    unreal.log("\n3. Example questions to ask:")
-    unreal.log("   - How does BP_FirstPersonCharacter handle movement?")
-    unreal.log("   - What components does BP_Weapon_Component have?")
-    unreal.log("   - Walk me through the weapon firing sequence")
-    unreal.log("   - Which blueprints use the IA_Jump input action?")
+    unreal.log("\n📍 FOR CLAUDE CODE:")
+    unreal.log(f"\n   The blueprint documentation is located at:")
+    unreal.log(f"   {full_docs_path}")
+    unreal.log("\n   Copy this message to Claude Code:")
+    unreal.log(f"   \"My UE5 blueprint docs are in: {full_docs_path}\"")
     unreal.log("\n" + "=" * 60)
-    unreal.log("\nTo re-export, run this script again.")
+    unreal.log("\nNEXT: Ask Claude Code about your blueprints:")
+    unreal.log("\nExample questions:")
+    unreal.log("  • How does movement input work in the character blueprint?")
+    unreal.log("  • Show me the node-by-node logic for jumping")
+    unreal.log("  • What components are in my blueprints?")
+    unreal.log("  • Explain the execution flow for [specific event]")
+    unreal.log("\n" + "=" * 60)
 
 
 # ============================================================================

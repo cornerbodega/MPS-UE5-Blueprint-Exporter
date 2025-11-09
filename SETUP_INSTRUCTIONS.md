@@ -69,9 +69,13 @@ cd C:\Path\To\YourProject
 
 ### Step 4: Run the Export
 
-1. In UE5 Editor, open **Window → Output Log** (or press `` ` `` for console)
+**⚠️ IMPORTANT:** UE5's Python console doesn't support multi-line commands. Use single-line commands only.
 
-2. Run this command:
+1. In UE5 Editor, open **Window → Developer Tools → Output Log**
+
+2. At the bottom, find the Python command input (looks like: `Cmd: ▊`)
+
+3. **Run this single-line command** (replace with YOUR absolute path):
    ```python
    import sys; sys.path.append("ABSOLUTE_PATH_TO_YOUR_PROJECT/Content/Python"); import blueprint_watcher; blueprint_watcher.main()
    ```
@@ -81,8 +85,25 @@ cd C:\Path\To\YourProject
    import sys; sys.path.append("/Users/yourname/Documents/Unreal Projects/MyProject/Content/Python"); import blueprint_watcher; blueprint_watcher.main()
    ```
 
-3. You should see:
+4. **Alternative (Better for Debugging):**
+
+   Use absolute path with the test script:
+   ```python
+   py "/ABSOLUTE/PATH/TO/YOUR/PROJECT/Content/Python/test_export.py"
    ```
+
+   Example:
+   ```python
+   py "/Users/yourname/Documents/Unreal Projects/MyProject/Content/Python/test_export.py"
+   ```
+
+   This provides detailed error messages in the Output Log.
+
+5. **Check the Output Log** for results (NOT the Python console):
+   ```
+   ============================================================
+   UE5 Blueprint Exporter for Claude Code
+   ============================================================
    Export complete! Exported X blueprints to ClaudeCodeDocs/Blueprints
    ```
 
@@ -115,6 +136,30 @@ Then ask:
 
 ## Troubleshooting
 
+### Export Command Shows No Output
+- **Check the Output Log window** (not the Python console) - that's where results appear
+- Look for messages starting with "UE5 Blueprint Exporter for Claude Code"
+- If nothing appears, the script may have failed silently
+
+### Multi-Line Commands Don't Work
+**Problem:** UE5 Python console can't handle newlines
+
+**Solution:** Always use single-line commands:
+```python
+# ✅ CORRECT (single line)
+import sys; sys.path.append("/path/to/Python"); import blueprint_watcher; blueprint_watcher.main()
+
+# ❌ WRONG (multi-line - will fail silently)
+import sys
+sys.path.append("/path/to/Python")
+import blueprint_watcher
+```
+
+Or use the test script with absolute path:
+```python
+py "/absolute/path/to/your/project/Content/Python/test_export.py"
+```
+
 ### "BlueprintExporter plugin not found"
 - Make sure the plugin compiled successfully
 - Check **Edit → Plugins** and verify "Blueprint Exporter" is enabled
@@ -126,10 +171,11 @@ Then ask:
 - Make sure Python plugin is enabled
 
 ### No Markdown Files Generated
-If you have JSON files but no `.md` files, run:
+The export likely failed. Use the test script for detailed errors:
 ```python
-import sys; sys.path.append("/absolute/path/to/Content/Python"); import generate_markdown_from_json; generate_markdown_from_json.process_json_files()
+py "/absolute/path/to/your/project/Content/Python/test_export.py"
 ```
+Check the Output Log for error messages.
 
 ### Compilation Errors
 If you get C++ compilation errors:

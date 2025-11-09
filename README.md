@@ -49,12 +49,37 @@ Claude reads the exported data and explains:
 
 ### 1️⃣ Download & Install
 
-**Clone or download this repository:**
-```bash
-git clone https://github.com/YOUR_USERNAME/UE5-Blueprint-Exporter.git
-```
+**Option A: Automated with Claude Code** 🚀 (Recommended)
 
-**Copy to your UE5 project:**
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/UE5-Blueprint-Exporter.git
+   cd UE5-Blueprint-Exporter
+   ```
+
+2. Start Claude Code:
+   ```bash
+   claude-code
+   ```
+
+3. In Claude Code, type the slash command:
+   ```
+   /setup-ue5-project
+   ```
+
+4. Provide your UE5 project path when asked
+
+5. Claude Code will automatically:
+   - ✅ Copy plugin files to your project
+   - ✅ Copy Python scripts to your project
+   - ✅ Generate your custom export command
+   - ✅ Show you the next steps
+
+**That's it!** No manual file copying needed.
+
+**Option B: Manual**
+
+Copy to your UE5 project:
 ```
 YourProject/
 ├── Plugins/
@@ -85,10 +110,13 @@ YourProject/
 
 ### 4️⃣ Export Your Blueprints
 
+**⚠️ IMPORTANT:** UE5's Python console doesn't support multi-line commands. Use the **single-line command** below.
+
 **In UE5 Editor:**
-1. Open **Window → Output Log**
-2. At the bottom, find the command input field (looks like: `Cmd: ▊`)
-3. **Copy and paste this command** (replace with YOUR project path):
+
+1. Open **Window → Developer Tools → Output Log** (check the Output Log for results)
+2. At the bottom, find the Python command input field (looks like: `Cmd: ▊`)
+3. **Run this single-line command** (all on ONE line):
 
 ```python
 import sys; sys.path.append("/Users/yourname/Documents/Unreal Projects/YourProject/Content/Python"); import blueprint_watcher; blueprint_watcher.main()
@@ -96,12 +124,27 @@ import sys; sys.path.append("/Users/yourname/Documents/Unreal Projects/YourProje
 
 **Real Example:**
 ```python
-import sys; sys.path.append("/Users/fromastermarv/Documents/Unreal Projects/exporter_fps_mvp/Content/Python"); import blueprint_watcher; blueprint_watcher.main()
+import sys; sys.path.append("/Users/fromastermarv/Documents/Unreal Projects/BlueprintDemo3/Content/Python"); import blueprint_watcher; blueprint_watcher.main()
 ```
 
 4. Press **Enter**
+5. **Check the Output Log window** (not the Python console) for results
 
-**You'll see:**
+**Alternative Method (Better for Debugging):**
+
+Use the simplified test script (use ABSOLUTE path):
+```python
+py "/ABSOLUTE/PATH/TO/YOUR/PROJECT/Content/Python/test_export.py"
+```
+
+Example:
+```python
+py "/Users/fromastermarv/Documents/Unreal Projects/BlueprintDemo3/Content/Python/test_export.py"
+```
+
+This runs the export with better error reporting visible in the Output Log.
+
+**You'll see in Output Log:**
 ```
 ============================================================
 UE5 Blueprint Exporter for Claude Code
@@ -293,6 +336,37 @@ INCLUDE_GRAPH_NODES = True
 
 ## 🐛 Troubleshooting
 
+### Export Command Shows No Output
+✅ **Solution:**
+- **Check the Output Log window** (not the Python console) - that's where `unreal.log()` messages appear
+- Look for text starting with "UE5 Blueprint Exporter for Claude Code"
+- If you see nothing, the script may have crashed silently
+
+### Script Runs But Nothing Happens
+✅ **Solution:**
+Use the test script for better error reporting (use absolute path):
+```python
+py "/absolute/path/to/your/project/Content/Python/test_export.py"
+```
+This will show detailed error messages in the Output Log.
+
+### Multi-Line Commands Don't Work
+✅ **Problem:** UE5 Python console can't handle newlines properly
+
+**Solution:** Always use single-line commands:
+```python
+# ✅ CORRECT (single line)
+import sys; sys.path.append("/path/to/Python"); import blueprint_watcher; blueprint_watcher.main()
+
+# ❌ WRONG (multi-line - will fail)
+import sys
+sys.path.append("/path/to/Python")
+import blueprint_watcher
+blueprint_watcher.main()
+```
+
+Or use `py "path/to/script.py"` to run a script file.
+
 ### "BlueprintExporter plugin not found"
 ✅ **Solution:**
 - Verify plugin compiled (check **Edit → Plugins**)
@@ -307,10 +381,10 @@ INCLUDE_GRAPH_NODES = True
 
 ### No Markdown Files Generated
 ✅ **Solution:**
-Run the markdown generator separately:
-```python
-import sys; sys.path.append("/path/to/Content/Python"); import generate_markdown_from_json; generate_markdown_from_json.process_json_files()
-```
+The export might have failed silently. Check:
+1. Run `py "/absolute/path/to/your/project/Content/Python/test_export.py"` for detailed errors
+2. Verify the plugin is compiled and enabled
+3. Check Output Log for error messages
 
 ### Compilation Errors on Mac
 ✅ **Solution:**

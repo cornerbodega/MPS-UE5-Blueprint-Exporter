@@ -1,0 +1,1 @@
+import sys; sys.path.append("/ABSOLUTE/PATH/TO/YOUR/PROJECT/Content/Python"); import blueprint_watcher; blueprint_watcher.main()
